@@ -1,0 +1,93 @@
+﻿@page "/ios-apps"
+@using Claunia.PropertyList
+@using System.IO.Compression
+@using System.Text.RegularExpressions
+@using System.Security.Cryptography
+@using System.Diagnostics
+@using System;
+@using System.Collections.Concurrent;
+@using System.Collections.Generic;
+@using System.Linq;
+@using System.Threading.Tasks;
+@attribute [StreamRendering]
+
+<PageTitle>IPAs</PageTitle>
+
+<h1>IPAs</h1>
+
+@if (_packages == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    @foreach (var package in _packages)
+    {
+        <div>
+            @package.CreationTime.ToString("dd. MMM") | @package.CreationTime.ToString("HH:mm") <br />
+            @package.Info.CFBundleIdentifier <br />
+            <a href="itms-services://?action=download-manifest&url=@package.Info.PlistUrl">install</a> <br />
+            @package.Info.CFBundleShortVersionString (@package.Info.CFBundleVersion)
+        </div>
+        <div>
+            <details>
+                <summary>Details</summary>
+                <ul>
+                    <li>SHA256: @package.Info.Sha256</li>
+                    <li><a href="@package.Info.PlistUrl">manifest.plist</a></li>
+                    <li><a href="@package.Info.IpaDownloadUrl">app.ipa</a></li>
+                </ul>
+
+                Info.plist:
+                <pre>
+                    @package.Info.InfoPlistXml
+                </pre>
+            </details>
+        </div>
+        <hr />
+    }
+}
+
+@code {
+    private IphoneInstallPackage[]? _packages;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var packages = new ConcurrentBag<IphoneInstallPackage>();
+
+        var files = Directory.GetFiles(Program.PackagesDir, $"*.{Program.FileExtension}");
+        await Parallel.ForEachAsync(files, async (file, ct) =>
+        {
+            using var fileStream = File.OpenRead(file);
+            var info = IpaHelper.GetInfo(file);
+
+            var package = new IphoneInstallPackage
+                {
+                    CreationTime = File.GetCreationTime(file),
+                    Filename = Path.GetFileName(file),
+                    Info = info,
+                };
+
+            packages.Add(package);
+        });
+
+        _packages = packages.ToArray();
+    }
+
+    public static async Task<string> ComputeSHA256HashAsync(string filePath)
+    {
+        using (FileStream stream = File.OpenRead(filePath))
+        using (SHA256 sha256 = SHA256.Create())
+        {
+            byte[] hash = await sha256.ComputeHashAsync(stream);
+            return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+        }
+    }
+
+    private class IphoneInstallPackage
+    {
+        public required DateTime CreationTime { get; init; }
+        public required string Filename { get; init; }
+        public required IpaHelper.IphoneInstallPackageInfos Info { get; init; }
+    }
+}
