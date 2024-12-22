@@ -18,8 +18,8 @@ internal static class IpaHelper
         var hash = Path.GetFileNameWithoutExtension(path);
         return new IphoneInstallPackageInfos
         {
-            PlistUrl = $"/{MyRoutes.download}/{hash}.plist",
-            IpaDownloadUrl = $"/{MyRoutes.download}/{hash}.ipa",
+            PlistUrl = $"{Program.BaseAddress}/{MyRoutes.download}/{hash}.plist",
+            IpaDownloadUrl = $"{Program.BaseAddress}/{MyRoutes.download}/{hash}.ipa",
             CFBundleIdentifier = infoPlist["CFBundleIdentifier"].ToString(),
             CFBundleVersion = infoPlist["CFBundleVersion"].ToString(),
             CFBundleShortVersionString = infoPlist["CFBundleShortVersionString"].ToString(),

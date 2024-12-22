@@ -7,6 +7,8 @@ internal class Program
         OperatingSystem.IsLinux() ? "/var/www/ipa-server/ipa" :
         throw new NotSupportedException();
 
+    public static string BaseAddress = Environment.GetEnvironmentVariable("SERVER_BASE_URL") ?? throw new Exception();
+
     public const string FileExtension = "sha256";
 
     private static void Main(string[] args)
