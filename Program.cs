@@ -2,7 +2,10 @@ using IpaHosting.Components;
 
 internal class Program
 {
-    public const string PackagesDir = "c:/temp/ipa";
+    public static string PackagesDir => 
+        OperatingSystem.IsWindows() ? "c:/temp/ipa" :
+        OperatingSystem.IsLinux() ? "ipa" :
+        throw new NotSupportedException();
 
     public const string FileExtension = "sha256";
 
