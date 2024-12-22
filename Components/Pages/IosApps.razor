@@ -9,6 +9,7 @@
 @using System.Collections.Generic;
 @using System.Linq;
 @using System.Threading.Tasks;
+@using Microsoft.AspNetCore.Mvc.Routing
 @attribute [StreamRendering]
 
 <PageTitle>IPAs</PageTitle>
@@ -26,7 +27,14 @@ else
         <div>
             @package.CreationTime.ToString("dd. MMM") | @package.CreationTime.ToString("HH:mm") <br />
             @package.Info.CFBundleIdentifier <br />
+            <br />
+            <br />
             <a href="itms-services://?action=download-manifest&url=@package.Info.PlistUrl">install</a> <br />
+            <br />
+            <br />
+            <a href="itms-services://?action=download-manifest&url=@Uri.EscapeDataString(package.Info.PlistUrl)">install encoded</a> <br />
+            <br />
+            <br />
             @package.Info.CFBundleShortVersionString (@package.Info.CFBundleVersion)
         </div>
         <div>
