@@ -4,7 +4,7 @@ internal class Program
 {
     public static string PackagesDir => 
         OperatingSystem.IsWindows() ? "c:/temp/ipa" :
-        OperatingSystem.IsLinux() ? "ipa" :
+        OperatingSystem.IsLinux() ? "/var/www/ipa-server/ipa" :
         throw new NotSupportedException();
 
     public const string FileExtension = "sha256";
