@@ -25,6 +25,7 @@ else
     @foreach (var package in _packages)
     {
         <div>
+            <img src="@package.Info.DisplayImageUrl" height="40" width="40" />
             @package.CreationTime.ToString("dd. MMM") | @package.CreationTime.ToString("HH:mm") <br />
             @package.Info.CFBundleIdentifier <br />
             <br />

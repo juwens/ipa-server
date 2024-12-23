@@ -25,7 +25,8 @@ internal static class IpaHelper
             CFBundleShortVersionString = infoPlist["CFBundleShortVersionString"].ToString(),
             Sha256 = hash,
             FileSize = new FileInfo(path).Length,
-            InfoPlistXml = infoPlist.ToXmlPropertyList()
+            InfoPlistXml = infoPlist.ToXmlPropertyList(),
+            DisplayImageUrl = new Uri($"{Program.BaseAddress}/{MyRoutes.download}/{hash}.display-image.png"),
         };
     }
 
@@ -39,5 +40,6 @@ internal static class IpaHelper
         public required string Sha256 { get; init; }
         public required long FileSize { get; init; }
         public required string InfoPlistXml { get; init; }
+        public required Uri DisplayImageUrl { get; init; }
     }
 }
