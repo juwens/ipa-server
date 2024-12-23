@@ -2,11 +2,7 @@ using IpaHosting.Components;
 
 internal class Program
 {
-    public static string PackagesDir => 
-        OperatingSystem.IsWindows() ? "c:/temp/ipa" :
-        OperatingSystem.IsLinux() ? "/var/www/ipa-server/ipa" :
-        throw new NotSupportedException();
-
+    public static string StorageDir = Environment.GetEnvironmentVariable("STORAGE_DIR") ?? throw new Exception();
     public static string BaseAddress = Environment.GetEnvironmentVariable("SERVER_BASE_URL") ?? throw new Exception();
 
     public const string FileExtension = "sha256";

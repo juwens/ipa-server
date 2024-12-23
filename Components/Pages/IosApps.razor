@@ -25,7 +25,7 @@ else
     @foreach (var package in _packages)
     {
         <div>
-            <img src="@package.Info.DisplayImageUrl" height="40" width="40" />
+            <img src="@package.Info.DisplayImageUrl" style="height: 40px; width: 40px; " />
             @package.CreationTime.ToString("dd. MMM") | @package.CreationTime.ToString("HH:mm") <br />
             @package.Info.CFBundleIdentifier <br />
             <br />
@@ -64,11 +64,10 @@ else
     {
         var packages = new ConcurrentBag<IphoneInstallPackage>();
 
-        var files = Directory.GetFiles(Program.PackagesDir, $"*.{Program.FileExtension}");
+        var files = Directory.GetFiles(Program.StorageDir, $"*.{Program.FileExtension}");
         await Parallel.ForEachAsync(files, async (file, ct) =>
         {
-            using var fileStream = File.OpenRead(file);
-            var info = IpaHelper.GetInfo(file);
+            var info = IpaHelper.GetInfo(Path.GetFileNameWithoutExtension(file));
 
             var package = new IphoneInstallPackage
                 {
