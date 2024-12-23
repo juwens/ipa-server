@@ -21,7 +21,7 @@ public class DownloadController : Controller
     /// <see cref="https://support.apple.com/en-mz/guide/deployment/depce7cefc4d/web"/>
     /// <seealso cref="https://support.pressmatrix.com/hc/en-us/articles/208640329-How-do-I-distribute-my-app-via-In-House-Apple-Enterprise-Distribution-OTA"/>
     /// </summary>
-    [HttpGet("{id:regex(^[[a-z0-9]]+[[.]]plist$)}")]
+    [HttpGet("{id:regex(^[[a-z0-9]]+$)}.plist")]
     [ProducesResponseType<string>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult GetPlist(string id)
@@ -41,7 +41,7 @@ public class DownloadController : Controller
 
     private string GetManifest(string id)
     {
-        var info = IpaHelper.GetInfo(Path.Combine(Program.StorageDir, $"{Path.GetFileNameWithoutExtension(id)}.{Program.FileExtension}"));
+        var info = IpaHelper.GetInfo(id);
 
         // https://support.pressmatrix.com/hc/en-us/articles/208640329-How-do-I-distribute-my-app-via-In-House-Apple-Enterprise-Distribution-OTA
 

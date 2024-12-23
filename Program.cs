@@ -2,6 +2,10 @@ using IpaHosting.Components;
 
 internal class Program
 {
+#pragma warning disable IDE1006 // Naming Styles
+    private const string SERVER_BASE_URL = nameof(SERVER_BASE_URL);
+#pragma warning restore IDE1006 // Naming Styles
+
     public static string StorageDir = Environment.GetEnvironmentVariable("STORAGE_DIR") ?? throw new Exception();
     public static string BaseAddress = Environment.GetEnvironmentVariable("SERVER_BASE_URL") ?? throw new Exception();
 
@@ -9,6 +13,11 @@ internal class Program
 
     private static void Main(string[] args)
     {
+        if (BaseAddress.EndsWith("/"))
+        {
+            throw new Exception($"{SERVER_BASE_URL} must not end with a '/'");
+        }
+
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
