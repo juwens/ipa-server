@@ -14,6 +14,8 @@ internal class Program
 
     public static long UploadMaxLength { get; } = 100 * 1024 * 1024;
 
+    public static ILogger Logger { get; set; } = null!;
+
     private static void Main(string[] args)
     {
         if (BaseAddress.EndsWith("/"))
@@ -37,6 +39,8 @@ internal class Program
         builder.Services.AddControllers();
 
         var app = builder.Build();
+
+        Logger = app.Logger;
 
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())

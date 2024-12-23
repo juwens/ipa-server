@@ -11,6 +11,7 @@
 @using System.Threading.Tasks;
 @using IpaHosting.Controllers
 @using Microsoft.AspNetCore.Mvc.Routing
+@using QRCoder
 @attribute [StreamRendering]
 
 <PageTitle>IPAs</PageTitle>
@@ -30,12 +31,11 @@ else
             @package.CreationTime.ToString("dd. MMM") | @package.CreationTime.ToString("HH:mm") <br />
             @package.Info.CFBundleIdentifier <br />
             <br />
-            <br />
-            <a href="itms-services://?action=download-manifest&url=@package.Info.PlistUrl">install</a> <br />
-            <br />
-            <br />
-            <a href="itms-services://?action=download-manifest&url=@Uri.EscapeDataString(package.Info.PlistUrl)">install encoded</a> <br />
-            <br />
+            @* <br />
+    <a href="itms-services://?action=download-manifest&url=@package.Info.PlistUrl">install</a> <br />
+    <br />
+    <br /> *@
+            <a href="@package.ItmsServiceUri">install encoded</a> <br />
             <br />
             @package.Info.CFBundleShortVersionString (@package.Info.CFBundleVersion)
         </div>
@@ -47,11 +47,12 @@ else
                     <li><a href="@package.Info.PlistUrl">manifest.plist</a></li>
                     <li><a href="@package.Info.IpaDownloadUrl">app.ipa</a></li>
                 </ul>
+                <img src="@ToDataUrl("image/png", package.ItmsServiceUri.ToString())" width="200" height="200" />
 
                 Info.plist:
                 <pre>
                     @package.Info.InfoPlistXml
-                </pre>
+                        </pre>
             </details>
         </div>
         <hr />
@@ -68,25 +69,48 @@ else
         var files = PathHelper.GetFiles();
         await Parallel.ForEachAsync(files, async (file, ct) =>
         {
-            var info = IpaHelper.GetInfo(Path.GetFileNameWithoutExtension(file));
+            try
+            {
+                var info = IpaHelper.GetInfo(Path.GetFileNameWithoutExtension(file));
 
-            var package = new IphoneInstallPackage
-                {
-                    CreationTime = File.GetCreationTime(file),
-                    Filename = Path.GetFileName(file),
-                    Info = info,
-                };
+                var package = new IphoneInstallPackage
+                    {
+                        CreationTime = File.GetCreationTime(file),
+                        Filename = Path.GetFileName(file),
+                        Info = info,
+                        ItmsServiceUri = new Uri("itms-services://?action=download-manifest&url=" + Uri.EscapeDataString(info.PlistUrl))
+                    };
 
-            packages.Add(package);
+                packages.Add(package);
+            }
+            catch (Exception ex)
+            {
+                Program.Logger.LogError(ex, $"failed to process file '{file}'");
+            }
         });
 
         _packages = packages.ToArray();
+    }
+
+    private static string ToDataUrl(string mimeType, string text)
+    {
+        byte[] qrCodeImage;
+        using (QRCodeGenerator qrGenerator = new QRCodeGenerator())
+        using (QRCodeData qrCodeData = qrGenerator.CreateQrCode(text, QRCodeGenerator.ECCLevel.Q))
+        using (PngByteQRCode qrCode = new PngByteQRCode(qrCodeData))
+        {
+            qrCodeImage = qrCode.GetGraphic(20);
+        }
+
+        var base64 = Convert.ToBase64String(qrCodeImage);
+        return string.Format("data:{0};base64,{1}", mimeType, base64);
     }
 
     private class IphoneInstallPackage
     {
         public required DateTime CreationTime { get; init; }
         public required string Filename { get; init; }
+        public required Uri ItmsServiceUri { get; init; }
         public required IpaHelper.IphoneInstallPackageInfos Info { get; init; }
     }
 }
