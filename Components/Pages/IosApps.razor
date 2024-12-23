@@ -47,12 +47,14 @@ else
                     <li><a href="@package.Info.PlistUrl">manifest.plist</a></li>
                     <li><a href="@package.Info.IpaDownloadUrl">app.ipa</a></li>
                 </ul>
-                <img src="@ToDataUrl("image/png", package.ItmsServiceUri.ToString())" width="200" height="200" />
+                <img src="@ToDataUrl("image/png", package.ItmsServiceUri.ToString())" width="200" height="200" style="display: block;" />
 
-                Info.plist:
-                <pre>
-                    @package.Info.InfoPlistXml
-                        </pre>
+                <details>
+                    <summary>Info.plist</summary>
+                    <pre>
+                        @package.Info.InfoPlistXml
+                    </pre>
+                </details>
             </details>
         </div>
         <hr />
