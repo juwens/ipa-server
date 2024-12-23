@@ -1,5 +1,6 @@
 ﻿
 using Claunia.PropertyList;
+using IpaHosting.Controllers;
 using PNGDecrush;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
@@ -12,7 +13,7 @@ internal static partial class IpaHelper
     {
         AssertIsAlphaNumeric(id);
 
-        var path = Path.Combine(Program.StorageDir, $"{id}.{Program.FileExtension}");
+        var path = PathHelper.GetAbsoluteIpaStoragePath(id);
         using var stream = File.OpenRead(path);
         var zip = new ZipArchive(stream, ZipArchiveMode.Read);
 
@@ -51,7 +52,7 @@ internal static partial class IpaHelper
     {
         AssertIsAlphaNumeric(id);
 
-        var path = Path.Combine(Program.StorageDir, $"{id}.{Program.FileExtension}");
+        var path = PathHelper.GetAbsoluteIpaStoragePath(id);
         using var stream = File.OpenRead(path);
         var zip = new ZipArchive(stream, ZipArchiveMode.Read);
         var infoPlistEntry = zip.Entries.First(x => Regex.IsMatch(x.FullName, "Payload/[^/]+[.]app/Info[.]plist$"));
@@ -74,7 +75,7 @@ internal static partial class IpaHelper
         };
     }
 
-    private static void AssertIsAlphaNumeric(string id)
+    internal static void AssertIsAlphaNumeric(string id)
     {
         if (!AlphaNumericRegex().IsMatch(id))
         {

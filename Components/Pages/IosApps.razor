@@ -9,6 +9,7 @@
 @using System.Collections.Generic;
 @using System.Linq;
 @using System.Threading.Tasks;
+@using IpaHosting.Controllers
 @using Microsoft.AspNetCore.Mvc.Routing
 @attribute [StreamRendering]
 
@@ -64,7 +65,7 @@ else
     {
         var packages = new ConcurrentBag<IphoneInstallPackage>();
 
-        var files = Directory.GetFiles(Program.StorageDir, $"*.{Program.FileExtension}");
+        var files = PathHelper.GetFiles();
         await Parallel.ForEachAsync(files, async (file, ct) =>
         {
             var info = IpaHelper.GetInfo(Path.GetFileNameWithoutExtension(file));
@@ -80,16 +81,6 @@ else
         });
 
         _packages = packages.ToArray();
-    }
-
-    public static async Task<string> ComputeSHA256HashAsync(string filePath)
-    {
-        using (FileStream stream = File.OpenRead(filePath))
-        using (SHA256 sha256 = SHA256.Create())
-        {
-            byte[] hash = await sha256.ComputeHashAsync(stream);
-            return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-        }
     }
 
     private class IphoneInstallPackage

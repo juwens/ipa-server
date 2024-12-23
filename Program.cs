@@ -12,7 +12,7 @@ internal class Program
     public static string BaseAddress = Environment.GetEnvironmentVariable(SERVER_BASE_URL) ?? throw new Exception();
     public static string Token = Environment.GetEnvironmentVariable(TOKEN) ?? throw new Exception();
 
-    public const string FileExtension = "sha256";
+    public static long UploadMaxLength { get; } = 100 * 1024 * 1024;
 
     private static void Main(string[] args)
     {
@@ -24,6 +24,11 @@ internal class Program
         Console.WriteLine($"using {TOKEN} '{Token}'");
 
         var builder = WebApplication.CreateBuilder(args);
+
+        builder.WebHost.ConfigureKestrel(serverOptions =>
+        {
+            serverOptions.Limits.MaxRequestBodySize = UploadMaxLength;
+        });
 
         // Add services to the container.
         builder.Services.AddRazorComponents()
