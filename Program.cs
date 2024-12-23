@@ -3,11 +3,14 @@ using IpaHosting.Components;
 internal class Program
 {
 #pragma warning disable IDE1006 // Naming Styles
+    private const string STORAGE_DIR = nameof(STORAGE_DIR);
     private const string SERVER_BASE_URL = nameof(SERVER_BASE_URL);
+    private const string TOKEN = nameof(TOKEN);
 #pragma warning restore IDE1006 // Naming Styles
 
-    public static string StorageDir = Environment.GetEnvironmentVariable("STORAGE_DIR") ?? throw new Exception();
-    public static string BaseAddress = Environment.GetEnvironmentVariable("SERVER_BASE_URL") ?? throw new Exception();
+    public static string StorageDir = Environment.GetEnvironmentVariable(STORAGE_DIR) ?? throw new Exception();
+    public static string BaseAddress = Environment.GetEnvironmentVariable(SERVER_BASE_URL) ?? throw new Exception();
+    public static string Token = Environment.GetEnvironmentVariable(TOKEN) ?? throw new Exception();
 
     public const string FileExtension = "sha256";
 
@@ -17,6 +20,8 @@ internal class Program
         {
             throw new Exception($"{SERVER_BASE_URL} must not end with a '/'");
         }
+
+        Console.WriteLine($"using {TOKEN} '{Token}'");
 
         var builder = WebApplication.CreateBuilder(args);
 

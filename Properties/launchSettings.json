@@ -15,7 +15,8 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "SERVER_BASE_URL": "https://localhost:7266",
-        "STORAGE_DIR": "c:/temp/ipa"
+        "STORAGE_DIR": "c:/temp/ipa",
+        "TOKEN": "secret"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "https://localhost:7266;http://localhost:5169"
