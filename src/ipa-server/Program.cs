@@ -1,4 +1,7 @@
 using IpaHosting.Components;
+using Blobject.Disk;
+using Blobject.Core;
+using IpaHosting.Controllers;
 
 internal class Program
 {
@@ -8,14 +11,14 @@ internal class Program
     private const string TOKEN = nameof(TOKEN);
 #pragma warning restore IDE1006 // Naming Styles
 
-    public static string StorageDir = Environment.GetEnvironmentVariable(STORAGE_DIR) ?? throw new Exception();
+    public static string StorageDir = (Environment.GetEnvironmentVariable(STORAGE_DIR) ?? throw new Exception()) + "/";
     public static string BaseAddress = Environment.GetEnvironmentVariable(SERVER_BASE_URL) ?? throw new Exception();
     public static string Token = Environment.GetEnvironmentVariable(TOKEN) ?? throw new Exception();
 
     public static long UploadMaxLength { get; } = 100 * 1024 * 1024;
-
+    public static IServiceProvider Services { get; private set; }
     public static ILogger Logger { get; set; } = null!;
-
+    
     private static void Main(string[] args)
     {
         if (BaseAddress.EndsWith("/"))
@@ -37,8 +40,11 @@ internal class Program
             .AddInteractiveServerComponents();
 
         builder.Services.AddControllers();
+        builder.Services.Add(ServiceDescriptor.Singleton<BlobClientBase>(new DiskBlobClient(new DiskSettings(StorageDir))));
+        builder.Services.Add(ServiceDescriptor.Singleton<IStorageService, StorageService>());
 
         var app = builder.Build();
+        Services = app.Services;
 
         Logger = app.Logger;
 

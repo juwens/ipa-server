@@ -6,6 +6,13 @@ namespace IpaHosting.Controllers;
 [ApiController]
 public class PackagesController : ControllerBase
 {
+    private readonly IStorageService _storage;
+
+    public PackagesController(IStorageService storage)
+    {
+        _storage = storage;
+    }
+
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -31,22 +38,7 @@ public class PackagesController : ControllerBase
                 await Request.Body.CopyToAsync(tmpFileStream);
             }
 
-            string hash;
-            using (var tmpFileStream = System.IO.File.OpenRead(tmpFile))
-            {
-                hash = await HashHelper.ComputeSHA256HashAsync(tmpFileStream);
-            }
-
-            var storagePath = PathHelper.GetAbsoluteIpaStoragePath(hash);
-            if (System.IO.File.Exists(storagePath))
-            {
-                return Content(JsonSerializer.Serialize(new
-                {
-                    status = "duplicate"
-                }));
-            }
-
-            System.IO.File.Move(tmpFile, storagePath);
+            await _storage.SaveAsync(PackageKind.Ipa, tmpFile);
         }
         catch (Exception ex)
         {

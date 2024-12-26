@@ -1,7 +1,10 @@
 ﻿
+using Blobject.Core;
+using Blobject.Disk;
 using Claunia.PropertyList;
 using IpaHosting.Controllers;
 using PNGDecrush;
+using System.IO;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 
@@ -48,31 +51,38 @@ internal static partial class IpaHelper
         return sanitizedStream.ToArray();
     }
 
-    internal static IphoneInstallPackageInfos GetInfo(string id)
+    internal static IphoneInstallPackageInfos GetInfo(Stream stream, string hash)
     {
-        AssertIsAlphaNumeric(id);
-
-        var path = PathHelper.GetAbsoluteIpaStoragePath(id);
-        using var stream = File.OpenRead(path);
         var zip = new ZipArchive(stream, ZipArchiveMode.Read);
         var infoPlistEntry = zip.Entries.First(x => Regex.IsMatch(x.FullName, "Payload/[^/]+[.]app/Info[.]plist$"));
 
         var infoPlist = (NSDictionary)PropertyListParser.Parse(infoPlistEntry.Open());
 
-        var hash = Path.GetFileNameWithoutExtension(path);
+        string? identifier = infoPlist["CFBundleIdentifier"].ToString();
+        string? version = infoPlist["CFBundleVersion"].ToString();
         return new IphoneInstallPackageInfos
         {
             PlistUrl = $"{Program.BaseAddress}/{MyRoutes.download}/{hash}.plist",
             IpaDownloadUrl = $"{Program.BaseAddress}/{MyRoutes.download}/{hash}.ipa",
-            CFBundleIdentifier = infoPlist["CFBundleIdentifier"].ToString(),
-            CFBundleVersion = infoPlist["CFBundleVersion"].ToString(),
+            CFBundleIdentifier = identifier,
+            CFBundleVersion = version,
             CFBundleShortVersionString = infoPlist["CFBundleShortVersionString"].ToString(),
             Sha256 = hash,
-            FileSize = new FileInfo(path).Length,
+            FileSize = stream.Length,
             InfoPlistXml = infoPlist.ToXmlPropertyList(),
             DisplayImageUrl = new Uri($"{Program.BaseAddress}/{MyRoutes.download}/{hash}.display-image.png"),
-            PhysicalFilePath = path,
+            StorageKey = $"ipa/{identifier}/{version}/{hash}.ipa"
         };
+    }
+
+    internal static async Task<IphoneInstallPackageInfos> GetInfoAsync(Blobject.Core.BlobMetadata blob)
+    {
+        var cl = Program.Services.GetRequiredService<BlobClientBase>();
+        var hash = Path.GetFileNameWithoutExtension(blob.Key);
+        using (var blobData = await cl.GetStreamAsync(blob.Key))
+        {
+            return GetInfo(blobData.Data, hash);
+        }
     }
 
     internal static void AssertIsAlphaNumeric(string id)
@@ -94,9 +104,18 @@ internal static partial class IpaHelper
         public required long FileSize { get; init; }
         public required string InfoPlistXml { get; init; }
         public required Uri DisplayImageUrl { get; init; }
-        public required string PhysicalFilePath { get; init; }
+        public required string StorageKey { get; init; }
     }
 
     [GeneratedRegex("^[a-zA-Z0-9]+$")]
     private static partial Regex AlphaNumericRegex();
+
+    internal static async Task<IphoneInstallPackageInfos> GetInfoAsync(PackageKind ipa, string id)
+    {
+        AssertIsAlphaNumeric(id);
+
+        var cl = Program.Services.GetRequiredService<BlobClientBase>();
+        var blob = cl.Enumerate(new EnumerationFilter() { Suffix = $"{id}.{PackageKind.Ipa}" }).Single();
+        return await GetInfoAsync(blob);
+    }
 }

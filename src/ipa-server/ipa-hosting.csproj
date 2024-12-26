@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Blobject.Disk" Version="5.0.8" />
     <PackageReference Include="plist-cil" Version="2.2.0" />
     <PackageReference Include="PNGDecrush" Version="1.1.13" />
     <PackageReference Include="QRCoder" Version="1.6.0" />

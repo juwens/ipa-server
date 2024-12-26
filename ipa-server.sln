@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35327.3
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ipa-hosting", "src\ipa-server\ipa-hosting.csproj", "{042A31F5-2386-4A5D-BD07-DC0C6D93F92D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ipa-hosting.test", "src\ipa-server.test\ipa-hosting.test.csproj", "{D7669C23-B5F8-4DFA-8C56-D7110288642B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{042A31F5-2386-4A5D-BD07-DC0C6D93F92D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{042A31F5-2386-4A5D-BD07-DC0C6D93F92D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{042A31F5-2386-4A5D-BD07-DC0C6D93F92D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{042A31F5-2386-4A5D-BD07-DC0C6D93F92D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D7669C23-B5F8-4DFA-8C56-D7110288642B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7669C23-B5F8-4DFA-8C56-D7110288642B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7669C23-B5F8-4DFA-8C56-D7110288642B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7669C23-B5F8-4DFA-8C56-D7110288642B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {181BDF07-6AC3-479E-AC3B-7A2CC41FF2CF}
+	EndGlobalSection
+EndGlobal

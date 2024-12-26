@@ -1,0 +1,44 @@
+﻿@using IpaHosting.Controllers
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">ipa-hosting</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        @foreach (var identifier in _appIdentifiers)
+        {
+            var href = $"ios-apps/{identifier}";
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="@href">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> @identifier
+                </NavLink>
+            </div>
+        }
+    </nav>
+</div>
+
+
+
+@code {
+    [Inject]
+    public required IStorageService StorageService { get; init; }
+
+    string[] _appIdentifiers = new string[0];
+
+    protected override Task OnInitializedAsync()
+    {
+        _appIdentifiers = StorageService.GetIdentifiers(PackageKind.Ipa).ToArray();
+
+        return Task.CompletedTask;
+    }
+}

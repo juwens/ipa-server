@@ -1,4 +1,4 @@
-﻿@page "/ios-apps"
+﻿@page "/ios-apps/{identifier}"
 @using Claunia.PropertyList
 @using System.IO.Compression
 @using System.Text.RegularExpressions
@@ -13,6 +13,8 @@
 @using Microsoft.AspNetCore.Mvc.Routing
 @using QRCoder
 @attribute [StreamRendering]
+
+@inject IStorageService _storage;
 
 <PageTitle>IPAs</PageTitle>
 
@@ -53,7 +55,7 @@ else
                     <summary>Info.plist</summary>
                     <pre>
                         @package.Info.InfoPlistXml
-                    </pre>
+                                    </pre>
                 </details>
             </details>
         </div>
@@ -62,23 +64,26 @@ else
 }
 
 @code {
+    [Parameter]
+    public required string Identifier { get; init; }
+
     private IphoneInstallPackage[]? _packages;
 
     protected override async Task OnInitializedAsync()
     {
         var packages = new ConcurrentBag<IphoneInstallPackage>();
 
-        var files = PathHelper.GetFiles();
-        await Parallel.ForEachAsync(files, async (file, ct) =>
+        var blobs = _storage.GetPackages(PackageKind.Ipa, Identifier).ToArray();
+        await Parallel.ForEachAsync(blobs, async (blob, ct) =>
         {
             try
             {
-                var info = IpaHelper.GetInfo(Path.GetFileNameWithoutExtension(file));
+                var info = await IpaHelper.GetInfoAsync(blob);
 
                 var package = new IphoneInstallPackage
                     {
-                        CreationTime = File.GetCreationTime(file),
-                        Filename = Path.GetFileName(file),
+                        CreationTime = blob.CreatedUtc.Value,
+                        StorageKey = blob.Key,
                         Info = info,
                         ItmsServiceUri = new Uri("itms-services://?action=download-manifest&url=" + Uri.EscapeDataString(info.PlistUrl))
                     };
@@ -87,7 +92,7 @@ else
             }
             catch (Exception ex)
             {
-                Program.Logger.LogError(ex, $"failed to process file '{file}'");
+                Program.Logger.LogError(ex, $"failed to process file '{blob.Key}'");
             }
         });
 
@@ -111,7 +116,7 @@ else
     private class IphoneInstallPackage
     {
         public required DateTime CreationTime { get; init; }
-        public required string Filename { get; init; }
+        public required string StorageKey { get; init; }
         public required Uri ItmsServiceUri { get; init; }
         public required IpaHelper.IphoneInstallPackageInfos Info { get; init; }
     }
