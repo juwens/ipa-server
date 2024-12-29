@@ -54,8 +54,19 @@ else
                 <details>
                     <summary>Info.plist</summary>
                     <pre>
-                        @package.Info.InfoPlistXml
-                                    </pre>
+                        <code>
+                            @package.Info.InfoPlistXml
+                        </code>
+                    </pre>
+                </details>
+
+                <details>
+                    <summary>Info.plist as JSON</summary>
+                    <pre>
+                        <code>
+                                @package.Info.InfoPlistJson
+                            </code>
+                        </pre>
                 </details>
             </details>
         </div>
@@ -91,9 +102,9 @@ else
                             CFBundleIdentifier = info.MetaData.CFBundleIdentifier,
                             CFBundleShortVersionString = info.MetaData.CFBundleShortVersionString,
                             CFBundleVersion = info.MetaData.CFBundleVersion,
-                            DisplayImageUrl = new Uri("/TODO", UriKind.Relative),
-                            FileSize = pkg.FileSize,
+                            DisplayImageUrl = MyUrlHelper.AppIconUrl(pkg.Sha256),
                             InfoPlistXml = info.MetaData.InfoPlistXml,
+                            InfoPlistJson = info.MetaData.InfoPlistJson,
                             IpaDownloadUrl = "/TODO",
                             PlistUrl = "/TODO",
                             Sha256 = pkg.Sha256.Value,

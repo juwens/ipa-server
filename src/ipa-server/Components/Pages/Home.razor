@@ -2,23 +2,3 @@
 @using IpaHosting.Controllers
 
 <PageTitle>Home</PageTitle>
-
-@foreach(var identifier in _appIdentifiers)
-{
-    <div>
-        <span>@identifier</span>
-    </div>
-}
-
-@code {
-    [Inject] IStorageService _storageService { get; init; }
-
-    string[] _appIdentifiers = new string[0];
-
-    protected override Task OnInitializedAsync()
-    {
-        _appIdentifiers = _storageService.GetIdentifiers(PackageKind.Ipa).ToArray();
-
-        return Task.CompletedTask;
-    }
-}

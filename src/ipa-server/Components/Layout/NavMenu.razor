@@ -15,7 +15,7 @@
             </NavLink>
         </div>
 
-        @foreach (var identifier in _appIdentifiers)
+        @foreach (var identifier in _appIdentifiers.OrderBy(x => x))
         {
             var href = $"ios-apps/{identifier}";
             <div class="nav-item px-3">

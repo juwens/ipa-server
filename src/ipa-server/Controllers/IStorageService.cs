@@ -1,20 +1,17 @@
 ﻿using LiteDB;
+using System.Collections.Concurrent;
+using System.IO.Compression;
 
 namespace IpaHosting.Controllers;
 
 internal sealed class StorageService : IStorageService
 {
     private static BsonMapper _mapper = new();
+    private static readonly ConcurrentDictionary<string, byte[]?> _imageCache = new();
 
     static StorageService()
     {
-        _mapper.Entity<IpaFileMetaData>()
-            .Field(x => x.CFBundleIdentifier, nameof(IpaFileMetaData.CFBundleIdentifier))
-            .Field(x => x.CFBundleVersion, nameof(IpaFileMetaData.CFBundleVersion))
-            .Field(x => x.CFBundleShortVersionString, nameof(IpaFileMetaData.CFBundleShortVersionString))
-            .Field(x => x.Sha256, nameof(IpaFileMetaData.Sha256))
-            .Field(x => x.InfoPlistXml, nameof(IpaFileMetaData.InfoPlistXml))
-            .Field(x => x.PackageKind, nameof(IpaFileMetaData.PackageKind));
+        IpaFileMetaData.Configure(_mapper);
     }
 
     public StorageService()
@@ -39,8 +36,14 @@ internal sealed class StorageService : IStorageService
     {
         using var db = OpenDb();
 
+        var mimeType = kind switch
+        {
+            PackageKind.Ipa => "application/x-itunes-ipa",
+            PackageKind.Apk => throw new NotImplementedException(),
+        };
+
         var ids = db.FileStorage
-            .FindAll()
+            .Find(x => x.MimeType == mimeType)
             .Select(x => _mapper.Deserialize<IpaFileMetaData>(x.Metadata).CFBundleIdentifier)
             .Distinct()
             .ToArray();
@@ -60,7 +63,8 @@ internal sealed class StorageService : IStorageService
         })
         .Select(x =>
         {
-            return new PackageInfo() { 
+            return new PackageInfo()
+            {
                 UploadDateUtc = x.File.UploadDate.ToUniversalTime(),
                 Sha256 = x.Metadata.Sha256,
                 FileSize = x.File.Length,
@@ -77,11 +81,13 @@ internal sealed class StorageService : IStorageService
             (hashString, hashBytes) = await HashHelper.ComputeSHA256HashAsync(tmpFileStream);
         }
 
-        IphoneInstallPackageInfo ipaInfo;
         using var db = OpenDb(readWrite: true);
         using (var tmpFileStream = File.OpenRead(tmpFile))
         {
-            ipaInfo = IpaHelper.GetInfo(tmpFileStream, hashString);
+            using var zip = new ZipArchive(tmpFileStream, ZipArchiveMode.Read);
+
+
+            var ipaInfo = IpaHelper.GetInfo(zip, hashString);
 
             var metaData = new IpaFileMetaData()
             {
@@ -90,12 +96,19 @@ internal sealed class StorageService : IStorageService
                 CFBundleVersion = ipaInfo.CFBundleVersion,
                 CFBundleShortVersionString = ipaInfo.CFBundleShortVersionString,
                 InfoPlistXml = ipaInfo.InfoPlistXml,
+                InfoPlistJson = ipaInfo.InfoPlistJson,
                 PackageKind = kind,
             };
-            var name = $"{ipaInfo.CFBundleIdentifier}.{ipaInfo.CFBundleVersion}.ipa";
+            var nameBase = $"{ipaInfo.CFBundleIdentifier}.{ipaInfo.CFBundleVersion}";
 
             tmpFileStream.Position = 0;
-            db.FileStorage.Upload(hashString, name, tmpFileStream, metadata: _mapper.Serialize(metaData).AsDocument);
+            db.FileStorage.Upload(hashString, $"{nameBase}.ipa", tmpFileStream, metadata: _mapper.Serialize(metaData).AsDocument);
+
+            var appIcon = IpaHelper.GetAppIcon(zip);
+            if (appIcon != null)
+            {
+                db.FileStorage.Upload($"{hashString}.appicon", $"{nameBase}.appicon.png", new MemoryStream(appIcon));
+            }
         }
     }
 
@@ -103,7 +116,30 @@ internal sealed class StorageService : IStorageService
     {
         var db = OpenDb();
         var file = db.FileStorage.Find(x => x.Id == id.Value).First();
-        return new (file, _mapper.Deserialize<IpaFileMetaData>(file.Metadata));
+        return new(file, _mapper.Deserialize<IpaFileMetaData>(file.Metadata));
+    }
+
+    public byte[]? GetDisplayImage(Sha256 id)
+    {
+        return _imageCache.GetOrAdd(id.Value, value =>
+        {
+            var db = OpenDb();
+            var entry = db.FileStorage.Find(x => x.Id == value + ".appicon").FirstOrDefault();
+
+            if (entry is null)
+            {
+                return null;
+            }
+
+            using var ms = new MemoryStream();
+            using (var sourceStream = entry.OpenRead())
+            {
+                sourceStream.CopyTo(ms);
+            }
+
+            ms.Position = 0;
+            return ms.ToArray();
+        });
     }
 }
 
@@ -114,7 +150,20 @@ public sealed class IpaFileMetaData
     public string CFBundleVersion { get; set; }
     public string CFBundleShortVersionString { get; set; }
     public string InfoPlistXml { get; set; }
+    public string InfoPlistJson { get; set; }
     public PackageKind PackageKind { get; set; }
+
+    internal static void Configure(BsonMapper mapper)
+    {
+        mapper.Entity<IpaFileMetaData>()
+            .Field(x => x.CFBundleIdentifier, nameof(IpaFileMetaData.CFBundleIdentifier))
+            .Field(x => x.CFBundleVersion, nameof(IpaFileMetaData.CFBundleVersion))
+            .Field(x => x.CFBundleShortVersionString, nameof(IpaFileMetaData.CFBundleShortVersionString))
+            .Field(x => x.Sha256, nameof(IpaFileMetaData.Sha256))
+            .Field(x => x.InfoPlistXml, nameof(IpaFileMetaData.InfoPlistXml))
+            .Field(x => x.InfoPlistJson, nameof(IpaFileMetaData.InfoPlistJson))
+            .Field(x => x.PackageKind, nameof(IpaFileMetaData.PackageKind));
+    }
 }
 
 public interface IStorageService
@@ -123,6 +172,7 @@ public interface IStorageService
     IReadOnlyList<string> GetIdentifiers(PackageKind kind);
     IEnumerable<PackageInfo> GetPackages(PackageKind kind, string identifier);
     IpaFileInfo GetFile(PackageKind ipa, Sha256 id);
+    byte[]? GetDisplayImage(Sha256 id);
 }
 
 public enum PackageKind

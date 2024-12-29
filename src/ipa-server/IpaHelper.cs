@@ -1,24 +1,18 @@
-﻿
-using Claunia.PropertyList;
+﻿using Claunia.PropertyList;
 using IpaHosting.Controllers;
 using PNGDecrush;
+using System.Diagnostics;
 using System.IO.Compression;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace IpaHosting;
 
 internal static partial class IpaHelper
 {
-    internal static byte[]? GetAppIcon(string id)
+    internal static byte[]? GetAppIcon(ZipArchive zip)
     {
-        return null; // TODO
-
-        AssertIsAlphaNumeric(id);
-
-        var path = PathHelper.GetAbsoluteIpaStoragePath(id);
-        using var stream = File.OpenRead(path);
-        var zip = new ZipArchive(stream, ZipArchiveMode.Read);
-
         // AppIcon60x60@2x.png
         var appIconEntry = zip.Entries.FirstOrDefault(x => Regex.IsMatch(x.FullName, "Payload/[^/]+[.]app/AppIcon60x60@2x[.]png$", RegexOptions.IgnoreCase));
 
@@ -28,8 +22,6 @@ internal static partial class IpaHelper
         }
 
         using var entryStream = appIconEntry.Open();
-
-        
         return SanitizePng(entryStream);
     }
 
@@ -75,10 +67,17 @@ internal static partial class IpaHelper
 
     internal static IphoneInstallPackageInfo GetInfo(Stream stream, string hash)
     {
-        var zip = new ZipArchive(stream, ZipArchiveMode.Read);
+        using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
+        return GetInfo(zip, hash);
+    }
+
+    internal static IphoneInstallPackageInfo GetInfo(ZipArchive zip, string hash)
+    {
         var infoPlistEntry = zip.Entries.First(x => Regex.IsMatch(x.FullName, "Payload/[^/]+[.]app/Info[.]plist$"));
 
         var infoPlist = (NSDictionary)PropertyListParser.Parse(infoPlistEntry.Open());
+
+        var infoPlistJson = ConvertInfoPlistToJson(infoPlist);
 
         string? identifier = infoPlist["CFBundleIdentifier"].ToString();
         string? version = infoPlist["CFBundleVersion"].ToString();
@@ -90,11 +89,77 @@ internal static partial class IpaHelper
             CFBundleVersion = version,
             CFBundleShortVersionString = infoPlist["CFBundleShortVersionString"].ToString(),
             Sha256 = hash,
-            FileSize = stream.Length,
             InfoPlistXml = infoPlist.ToXmlPropertyList(),
+            InfoPlistJson = infoPlistJson,
             DisplayImageUrl = new Uri($"{Program.BaseAddress}/{MyRoutes.download}/{hash}.display-image.png"),
-            StorageKey = $"ipa/{identifier}/{version}/{hash}.ipa"
+            StorageKey = $"ipa/{identifier}/{version}/{hash}.ipa",
         };
+    }
+
+    private static string ConvertInfoPlistToJson(NSDictionary infoPlist)
+    {
+        var dict = infoPlist.ToDictionary();
+        var opts = new JsonSerializerOptions()
+        {
+            WriteIndented = true,
+        };
+        opts.Converters.Add(new NsValueConverter());
+        var res = JsonSerializer.Serialize(infoPlist, opts);
+        return res;
+    }
+
+    private class NsValueConverter : JsonConverter<NSObject>
+    {
+        public override NSObject? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Write(Utf8JsonWriter writer, NSObject value, JsonSerializerOptions options)
+        {
+            if (value is NSString str)
+            {
+                writer.WriteStringValue(str.Content);
+            }
+            else if (value is NSNumber num)
+            {
+                if (num.isBoolean())
+                {
+                    writer.WriteBooleanValue(num.ToBool());
+                }
+                else if (num.isInteger())
+                {
+                    writer.WriteNumberValue(num.ToLong());
+                }
+                else
+                {
+                    Debugger.Break();
+                }
+            }
+            else if (value is NSArray array)
+            {
+                writer.WriteStartArray();
+                foreach (var item in array)
+                {
+                    Write(writer, item, options);
+                }
+                writer.WriteEndArray();
+            }
+            else if (value is NSDictionary dict)
+            {
+                writer.WriteStartObject();
+                foreach (var item in dict)
+                {
+                    writer.WritePropertyName(item.Key);
+                    Write(writer, item.Value, options);
+                }
+                writer.WriteEndObject();
+            }
+            else
+            {
+                Debugger.Break();
+            }
+        }
     }
 }
 
@@ -106,13 +171,16 @@ public class IphoneInstallPackageInfo
     public required string CFBundleVersion { get; init; }
     public required string CFBundleShortVersionString { get; init; }
     public required string Sha256 { get; init; }
-    public required long FileSize { get; init; }
     public required string InfoPlistXml { get; init; }
     public required Uri DisplayImageUrl { get; init; }
     public required string StorageKey { get; init; }
+    /// <summary>
+    /// only for convenience, cause the NSDictionary xml is extremely verbose
+    /// </summary>
+    public required string InfoPlistJson { get; init; }
 }
 
-public record Sha256
+public sealed record Sha256
 {
     public string Value { get; }
 

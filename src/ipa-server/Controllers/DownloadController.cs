@@ -1,12 +1,17 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Nito.Disposables;
+using System.Diagnostics;
 
 namespace IpaHosting.Controllers;
 
 [Route(MyRoutes.download)]
 public class DownloadController : Controller
 {
-    public DownloadController()
+    private readonly IStorageService _storageService;
+
+    public DownloadController(IStorageService storageService)
     {
+        _storageService = storageService;
     }
 
     [HttpGet("{id:regex([[a-z0-9]]+)}.ipa")]
@@ -40,8 +45,15 @@ public class DownloadController : Controller
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult GetDisplayImage(string id)
     {
-        var img = IpaHelper.GetAppIcon(id);
-        return base.File(img ?? _displayImageFallback, "image/png", enableRangeProcessing: true);
+        var sw = Stopwatch.StartNew();
+        using var _ = Disposable.Create(() =>
+        {
+            sw.Stop();
+            Console.WriteLine($"GetDisplayImage() took {sw.Elapsed.TotalMilliseconds:F1} ms");
+        });
+
+        var img = _storageService.GetDisplayImage(id);
+        return base.File(img ?? _displayImageFallback, "image/png");
     }
 
     private async Task<string> GetManifestAsync(string id)
