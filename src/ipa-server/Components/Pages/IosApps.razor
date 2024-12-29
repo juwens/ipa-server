@@ -29,33 +29,40 @@ else
     @foreach (var package in _packages)
     {
         <div>
-            <img src="@package.Info.DisplayImageUrl" style="height: 40px; width: 40px; " />
+            <img src="@package.DisplayImageUrl" style="height: 40px; width: 40px; " />
             @package.CreationTime.ToString("dd. MMM") | @package.CreationTime.ToString("HH:mm") <br />
-            @package.Info.CFBundleIdentifier <br />
-            <br />
-            @* <br />
-    <a href="itms-services://?action=download-manifest&url=@package.Info.PlistUrl">install</a> <br />
-    <br />
-    <br /> *@
-            <a href="@package.ItmsServiceUri">install encoded</a> <br />
-            <br />
-            @package.Info.CFBundleShortVersionString (@package.Info.CFBundleVersion)
+            @package.CFBundleIdentifier <br />
+            <a href="@package.ItmsServiceUri" style="font-size: 1.5rem;">
+                <div style="background-color: lightgray; border-radius: 1em; display: inline-block; padding: 0.2em 1em;">
+                    install
+                </div>
+            </a>
+            @package.CFBundleShortVersionString (@package.CFBundleVersion)
         </div>
         <div>
             <details>
                 <summary>Details</summary>
                 <ul>
-                    <li>SHA256: @package.Info.Sha256</li>
-                    <li><a href="@package.Info.PlistUrl">manifest.plist</a></li>
-                    <li><a href="@package.Info.IpaDownloadUrl">app.ipa</a></li>
+                    <li>SHA256: @package.Sha256</li>
+                    <li><a href="@package.PlistUrl">manifest.plist</a></li>
+                    <li><a href="@package.IpaDownloadUrl">app.ipa</a></li>
                 </ul>
                 <img src="@ToDataUrl("image/png", package.ItmsServiceUri.ToString())" width="200" height="200" style="display: block;" />
+
+                <details>
+                    <summary>Info.plist as YAML</summary>
+                    <pre>
+                        <code>
+                            @package.InfoPlistYml
+                        </code>
+                    </pre>
+                </details>
 
                 <details>
                     <summary>Info.plist</summary>
                     <pre>
                         <code>
-                            @package.Info.InfoPlistXml
+                            @package.InfoPlistXml
                         </code>
                     </pre>
                 </details>
@@ -64,9 +71,9 @@ else
                     <summary>Info.plist as JSON</summary>
                     <pre>
                         <code>
-                                @package.Info.InfoPlistJson
-                            </code>
-                        </pre>
+                            @package.InfoPlistJson
+                        </code>
+                    </pre>
                 </details>
             </details>
         </div>
@@ -78,13 +85,13 @@ else
     [Parameter]
     public required string Identifier { get; init; }
 
-    private IphoneInstallPackage[]? _packages;
+    private IpaVm[]? _packages;
 
     [Inject] IStorageService _storageService { get; init; }
 
     protected override async Task OnInitializedAsync()
     {
-        var result = new ConcurrentBag<IphoneInstallPackage>();
+        var result = new ConcurrentBag<IpaVm>();
 
         var foundPackages = _storage.GetPackages(PackageKind.Ipa, Identifier).ToArray();
         await Parallel.ForEachAsync(foundPackages, async (pkg, ct) =>
@@ -93,23 +100,20 @@ else
             {
                 var info = _storageService.GetFile(PackageKind.Ipa, pkg.Sha256);
 
-                var package = new IphoneInstallPackage
+                var package = new IpaVm
                     {
                         CreationTime = pkg.UploadDateUtc.ToLocalTime(),
                         StorageKey = pkg.Sha256.Value,
-                        Info = new()
-                        {
-                            CFBundleIdentifier = info.MetaData.CFBundleIdentifier,
-                            CFBundleShortVersionString = info.MetaData.CFBundleShortVersionString,
-                            CFBundleVersion = info.MetaData.CFBundleVersion,
-                            DisplayImageUrl = MyUrlHelper.AppIconUrl(pkg.Sha256),
-                            InfoPlistXml = info.MetaData.InfoPlistXml,
-                            InfoPlistJson = info.MetaData.InfoPlistJson,
-                            IpaDownloadUrl = "/TODO",
-                            PlistUrl = "/TODO",
-                            Sha256 = pkg.Sha256.Value,
-                            StorageKey = pkg.Sha256.Value,
-                        },
+                        InfoPlistXml = info.MetaData.InfoPlistXml,
+                        InfoPlistJson = info.MetaData.InfoPlistJson,
+                        InfoPlistYml = ConvertJsonToYml(info.MetaData.InfoPlistJson),
+                        CFBundleIdentifier = info.MetaData.CFBundleIdentifier,
+                        CFBundleShortVersionString = info.MetaData.CFBundleShortVersionString,
+                        CFBundleVersion = info.MetaData.CFBundleVersion,
+                        DisplayImageUrl = MyUrlHelper.AppIconUrl(pkg.Sha256),
+                        IpaDownloadUrl = "/TODO",
+                        PlistUrl = "/TODO",
+                        Sha256 = pkg.Sha256.Value,
                         ItmsServiceUri = new Uri("itms-services://?action=download-manifest&url=" + Uri.EscapeDataString("TODO"))
                     };
 
@@ -122,6 +126,13 @@ else
         });
 
         _packages = result.ToArray();
+    }
+
+    private static string ConvertJsonToYml(string json)
+    {
+        var serializer = new SharpYaml.Serialization.Serializer();
+        var yml = serializer.Serialize(serializer.Deserialize(json));
+        return yml;
     }
 
     private static string ToDataUrl(string mimeType, string text)
@@ -144,5 +155,22 @@ else
         public required string StorageKey { get; init; }
         public required Uri ItmsServiceUri { get; init; }
         public required IphoneInstallPackageInfo Info { get; init; }
+    }
+
+    class IpaVm
+    {
+        public required DateTime CreationTime { get; init; }
+        public required string StorageKey { get; init; }
+        public required string InfoPlistXml { get; init; }
+        public required string InfoPlistJson { get; init; }
+        public required string InfoPlistYml { get; init; }
+        public required Uri DisplayImageUrl { get; init; }
+        public required Uri ItmsServiceUri { get; init; }
+        public required string CFBundleIdentifier { get; init; }
+        public required string CFBundleShortVersionString { get; init; }
+        public required string CFBundleVersion { get; init; }
+        public required string Sha256 { get; init; }
+        public required string PlistUrl { get; init; }
+        public required string IpaDownloadUrl { get; init; }
     }
 }
