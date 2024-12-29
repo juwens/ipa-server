@@ -1,10 +1,7 @@
 ﻿
-using Blobject.Core;
-using Blobject.Disk;
 using Claunia.PropertyList;
 using IpaHosting.Controllers;
 using PNGDecrush;
-using System.IO;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 
@@ -14,6 +11,8 @@ internal static partial class IpaHelper
 {
     internal static byte[]? GetAppIcon(string id)
     {
+        return null; // TODO
+
         AssertIsAlphaNumeric(id);
 
         var path = PathHelper.GetAbsoluteIpaStoragePath(id);
@@ -51,7 +50,30 @@ internal static partial class IpaHelper
         return sanitizedStream.ToArray();
     }
 
-    internal static IphoneInstallPackageInfos GetInfo(Stream stream, string hash)
+    internal static void AssertIsAlphaNumeric(string id)
+    {
+        if (!AlphaNumericRegex().IsMatch(id))
+        {
+            throw new ArgumentException("parameter must be alpha-numeric", nameof(id));
+        }
+    }
+
+    [GeneratedRegex("^[a-zA-Z0-9]+$")]
+    internal static partial Regex AlphaNumericRegex();
+
+    internal static async Task<IphoneInstallPackageInfo> GetInfoAsync(PackageKind ipa, Sha256 id)
+    {
+        
+
+        var storage = Program.Services.GetRequiredService<IStorageService>();
+        var ipaFileEntry = storage.GetFile(ipa, id);
+        using (var stream = ipaFileEntry.FileInfo.OpenRead())
+        {
+            return GetInfo(stream, ipaFileEntry.MetaData.Sha256);
+        }
+    }
+
+    internal static IphoneInstallPackageInfo GetInfo(Stream stream, string hash)
     {
         var zip = new ZipArchive(stream, ZipArchiveMode.Read);
         var infoPlistEntry = zip.Entries.First(x => Regex.IsMatch(x.FullName, "Payload/[^/]+[.]app/Info[.]plist$"));
@@ -60,7 +82,7 @@ internal static partial class IpaHelper
 
         string? identifier = infoPlist["CFBundleIdentifier"].ToString();
         string? version = infoPlist["CFBundleVersion"].ToString();
-        return new IphoneInstallPackageInfos
+        return new IphoneInstallPackageInfo
         {
             PlistUrl = $"{Program.BaseAddress}/{MyRoutes.download}/{hash}.plist",
             IpaDownloadUrl = $"{Program.BaseAddress}/{MyRoutes.download}/{hash}.ipa",
@@ -74,48 +96,40 @@ internal static partial class IpaHelper
             StorageKey = $"ipa/{identifier}/{version}/{hash}.ipa"
         };
     }
+}
 
-    internal static async Task<IphoneInstallPackageInfos> GetInfoAsync(Blobject.Core.BlobMetadata blob)
+public class IphoneInstallPackageInfo
+{
+    public required string PlistUrl { get; init; }
+    public required string IpaDownloadUrl { get; init; }
+    public required string CFBundleIdentifier { get; init; }
+    public required string CFBundleVersion { get; init; }
+    public required string CFBundleShortVersionString { get; init; }
+    public required string Sha256 { get; init; }
+    public required long FileSize { get; init; }
+    public required string InfoPlistXml { get; init; }
+    public required Uri DisplayImageUrl { get; init; }
+    public required string StorageKey { get; init; }
+}
+
+public record Sha256
+{
+    public string Value { get; }
+
+    public Sha256(string value)
     {
-        var cl = Program.Services.GetRequiredService<BlobClientBase>();
-        var hash = Path.GetFileNameWithoutExtension(blob.Key);
-        using (var blobData = await cl.GetStreamAsync(blob.Key))
+        if (!IpaHelper.AlphaNumericRegex().IsMatch(value))
         {
-            return GetInfo(blobData.Data, hash);
+            throw new ArgumentException("parameter must be alpha-numeric", nameof(value));
         }
-    }
 
-    internal static void AssertIsAlphaNumeric(string id)
-    {
-        if (!AlphaNumericRegex().IsMatch(id))
+        if (value.Length != 64)
         {
-            throw new ArgumentException("parameter must be alpha-numeric", nameof(id));
+            throw new ArgumentException("parameter must be 64 chars long", nameof(value));
         }
+
+        Value = value;
     }
 
-    public class IphoneInstallPackageInfos
-    {
-        public required string PlistUrl { get; init; }
-        public required string IpaDownloadUrl { get; init; }
-        public required string CFBundleIdentifier { get; init; }
-        public required string CFBundleVersion { get; init; }
-        public required string CFBundleShortVersionString { get; init; }
-        public required string Sha256 { get; init; }
-        public required long FileSize { get; init; }
-        public required string InfoPlistXml { get; init; }
-        public required Uri DisplayImageUrl { get; init; }
-        public required string StorageKey { get; init; }
-    }
-
-    [GeneratedRegex("^[a-zA-Z0-9]+$")]
-    private static partial Regex AlphaNumericRegex();
-
-    internal static async Task<IphoneInstallPackageInfos> GetInfoAsync(PackageKind ipa, string id)
-    {
-        AssertIsAlphaNumeric(id);
-
-        var cl = Program.Services.GetRequiredService<BlobClientBase>();
-        var blob = cl.Enumerate(new EnumerationFilter() { Suffix = $"{id}.{PackageKind.Ipa}" }).Single();
-        return await GetInfoAsync(blob);
-    }
+    public static implicit operator Sha256(string value) => new(value);
 }

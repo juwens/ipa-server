@@ -69,34 +69,48 @@ else
 
     private IphoneInstallPackage[]? _packages;
 
+    [Inject] IStorageService _storageService { get; init; }
+
     protected override async Task OnInitializedAsync()
     {
-        var packages = new ConcurrentBag<IphoneInstallPackage>();
+        var result = new ConcurrentBag<IphoneInstallPackage>();
 
-        var blobs = _storage.GetPackages(PackageKind.Ipa, Identifier).ToArray();
-        await Parallel.ForEachAsync(blobs, async (blob, ct) =>
+        var foundPackages = _storage.GetPackages(PackageKind.Ipa, Identifier).ToArray();
+        await Parallel.ForEachAsync(foundPackages, async (pkg, ct) =>
         {
             try
             {
-                var info = await IpaHelper.GetInfoAsync(blob);
+                var info = _storageService.GetFile(PackageKind.Ipa, pkg.Sha256);
 
                 var package = new IphoneInstallPackage
                     {
-                        CreationTime = blob.CreatedUtc.Value,
-                        StorageKey = blob.Key,
-                        Info = info,
-                        ItmsServiceUri = new Uri("itms-services://?action=download-manifest&url=" + Uri.EscapeDataString(info.PlistUrl))
+                        CreationTime = pkg.UploadDateUtc.ToLocalTime(),
+                        StorageKey = pkg.Sha256.Value,
+                        Info = new()
+                        {
+                            CFBundleIdentifier = info.MetaData.CFBundleIdentifier,
+                            CFBundleShortVersionString = info.MetaData.CFBundleShortVersionString,
+                            CFBundleVersion = info.MetaData.CFBundleVersion,
+                            DisplayImageUrl = new Uri("/TODO", UriKind.Relative),
+                            FileSize = pkg.FileSize,
+                            InfoPlistXml = info.MetaData.InfoPlistXml,
+                            IpaDownloadUrl = "/TODO",
+                            PlistUrl = "/TODO",
+                            Sha256 = pkg.Sha256.Value,
+                            StorageKey = pkg.Sha256.Value,
+                        },
+                        ItmsServiceUri = new Uri("itms-services://?action=download-manifest&url=" + Uri.EscapeDataString("TODO"))
                     };
 
-                packages.Add(package);
+                result.Add(package);
             }
             catch (Exception ex)
             {
-                Program.Logger.LogError(ex, $"failed to process file '{blob.Key}'");
+                Program.Logger.LogError(ex, $"failed to process file '{pkg.Sha256}'");
             }
         });
 
-        _packages = packages.ToArray();
+        _packages = result.ToArray();
     }
 
     private static string ToDataUrl(string mimeType, string text)
@@ -118,6 +132,6 @@ else
         public required DateTime CreationTime { get; init; }
         public required string StorageKey { get; init; }
         public required Uri ItmsServiceUri { get; init; }
-        public required IpaHelper.IphoneInstallPackageInfos Info { get; init; }
+        public required IphoneInstallPackageInfo Info { get; init; }
     }
 }

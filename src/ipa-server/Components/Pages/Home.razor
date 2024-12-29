@@ -11,14 +11,13 @@
 }
 
 @code {
-    [Inject]
-    public required IStorageService StorageService { get; init; }
+    [Inject] IStorageService _storageService { get; init; }
 
     string[] _appIdentifiers = new string[0];
 
     protected override Task OnInitializedAsync()
     {
-        _appIdentifiers = StorageService.GetIdentifiers(PackageKind.Ipa).ToArray();
+        _appIdentifiers = _storageService.GetIdentifiers(PackageKind.Ipa).ToArray();
 
         return Task.CompletedTask;
     }
